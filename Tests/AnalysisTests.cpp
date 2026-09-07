@@ -26,7 +26,7 @@ static juce::AudioBuffer<float> makeSong (double sr, double bpm, double seconds,
         {
             const double tt = i / sr;
             const double f = 150.0 * std::exp (-tt * 30.0) + 45.0;
-            d[s + i] += (float) (0.9 * std::sin (2 * M_PI * f * tt) * std::exp (-tt * 18.0));   // kick
+            d[s + i] += (float) (0.9 * std::sin (2 * juce::MathConstants<double>::pi * f * tt) * std::exp (-tt * 18.0));   // kick
         }
         if (beatIndex % beatsPerBar == 0)   // accent the downbeat: extra low tom + crash-ish noise
             for (int i = 0; i < (int) (0.3 * sr) && s + i < b.getNumSamples(); ++i) d[s + i] += (float) (0.4 * rng.nextFloat() * std::exp (-i / sr * 12.0));
@@ -52,7 +52,7 @@ static juce::AudioBuffer<float> makeSong (double sr, double bpm, double seconds,
             for (int s = s0; s < s1; ++s)
             {
                 const double tt = (s - s0) / sr;
-                double v = 0; for (int h = 1; h <= 5; ++h) v += std::sin (2 * M_PI * f * h * s / sr) / h;
+                double v = 0; for (int h = 1; h <= 5; ++h) v += std::sin (2 * juce::MathConstants<double>::pi * f * h * s / sr) / h;
                 d[s] += (float) (0.12 * v * std::min (1.0, tt * 20.0));
             }
         }
@@ -136,7 +136,7 @@ public:
         beginTest ("loudness");
         {
             juce::AudioBuffer<float> sine (2, (int) (sr * 5));
-            for (int i = 0; i < sine.getNumSamples(); ++i) { const float v = (float) std::sin (2 * M_PI * 1000.0 * i / sr) * 0.5f; sine.setSample (0, i, v); sine.setSample (1, i, v); }
+            for (int i = 0; i < sine.getNumSamples(); ++i) { const float v = (float) std::sin (2 * juce::MathConstants<double>::pi * 1000.0 * i / sr) * 0.5f; sine.setSample (0, i, v); sine.setSample (1, i, v); }
             double lufs, tp, lra; dsp::LoudnessMeter::analyse (sine, sr, lufs, tp, lra);
             logMessage ("1 kHz stereo -6 dBFS sine: " + juce::String (lufs, 2) + " LUFS");
             // BS.1770: a -6 dBFS 1 kHz sine in both channels reads about -6.0 LUFS (K-weighting ~0 dB at 1 kHz, +3 dB for two channels, -0.691 offset => -9.0+3.0 ≈ -6.0)
@@ -146,7 +146,7 @@ public:
         beginTest ("offline stretch changes length, keeps pitch");
         {
             juce::AudioBuffer<float> sine (1, (int) sr * 2);
-            for (int i = 0; i < sine.getNumSamples(); ++i) sine.setSample (0, i, (float) std::sin (2 * M_PI * 440.0 * i / sr));
+            for (int i = 0; i < sine.getNumSamples(); ++i) sine.setSample (0, i, (float) std::sin (2 * juce::MathConstants<double>::pi * 440.0 * i / sr));
             auto out = dsp::stretchOffline (sine, sr, 1.5, 1.0, StretchMode::HighQuality);
             expectWithinAbsoluteError ((double) out.getNumSamples() / sine.getNumSamples(), 1.5, 0.02);
             // zero-crossing based frequency estimate of the middle of the output

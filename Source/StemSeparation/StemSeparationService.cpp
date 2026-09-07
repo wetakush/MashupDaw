@@ -15,16 +15,39 @@ StemSeparationService::~StemSeparationService()
     cancelPendingUpdate();
 }
 
-juce::File StemSeparationService::getWorkerScript() const { return juce::File (MASHUP_SCRIPTS_DIR).getChildFile ("demucs_worker.py"); }
+static juce::File scriptsDirectory()
+{
+    // source tree (development), then locations relative to the executable (installed / packaged)
+    juce::File src (MASHUP_SCRIPTS_DIR);
+    if (src.isDirectory()) return src;
+    auto exe = juce::File::getSpecialLocation (juce::File::currentExecutableFile);
+    for (auto* rel : { "Scripts", "../Scripts", "../share/mashupdaw/scripts", "../Resources/Scripts" })
+        if (auto d = exe.getParentDirectory().getChildFile (rel); d.isDirectory()) return d;
+    return src;
+}
+
+juce::File StemSeparationService::getWorkerScript() const { return scriptsDirectory().getChildFile ("demucs_worker.py"); }
+
+static juce::File pythonInVenv (const juce::File& venv)
+{
+   #if JUCE_WINDOWS
+    return venv.getChildFile ("Scripts/python.exe");
+   #else
+    return venv.getChildFile ("bin/python");
+   #endif
+}
 
 juce::File StemSeparationService::getPythonExecutable() const
 {
-    if (const char* env = std::getenv ("MASHUP_STEMS_VENV")) { juce::File f = juce::File (env).getChildFile ("bin/python"); if (f.existsAsFile()) return f; }
-    juce::File repoVenv = juce::File (MASHUP_SCRIPTS_DIR).getParentDirectory().getChildFile (".venv-stems/bin/python");
-    if (repoVenv.existsAsFile()) return repoVenv;
-    juce::File appVenv = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("MashupDaw/venv-stems/bin/python");
-    if (appVenv.existsAsFile()) return appVenv;
+    if (const char* env = std::getenv ("MASHUP_STEMS_VENV")) { auto f = pythonInVenv (juce::File (env)); if (f.existsAsFile()) return f; }
+    for (auto dir : { scriptsDirectory().getParentDirectory().getChildFile (".venv-stems"),
+                      juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("MashupDaw/venv-stems") })
+        if (auto f = pythonInVenv (dir); f.existsAsFile()) return f;
+   #if JUCE_WINDOWS
+    return juce::File ("C:/Windows/py.exe").existsAsFile() ? juce::File ("C:/Windows/py.exe") : juce::File ("python.exe");
+   #else
     return juce::File ("/usr/bin/python3");
+   #endif
 }
 
 juce::String StemSeparationService::getEnvironmentStatus() const

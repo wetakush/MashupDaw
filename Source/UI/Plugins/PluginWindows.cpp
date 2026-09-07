@@ -83,7 +83,7 @@ PluginManagerDialog::PluginManagerDialog (Session& s) : session (s)
     scanButton.onClick = [this] { session.getPluginHost().scanAsync (false); startTimerHz (5); };
     pathButton.onClick = [this]
     {
-        auto chooser = std::make_shared<juce::FileChooser> ("VST3 folder", juce::File ("/usr/lib/vst3"));
+        auto chooser = std::make_shared<juce::FileChooser> ("VST3 folder", juce::File::getSpecialLocation (juce::File::userHomeDirectory));
         chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories, [this, chooser] (const juce::FileChooser& fc)
         { if (fc.getResult() != juce::File()) { auto p = session.getPluginHost().getSearchPath(); p.add (fc.getResult()); session.getPluginHost().setSearchPath (p); refresh(); } });
     };

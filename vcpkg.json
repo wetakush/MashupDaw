@@ -1,0 +1,9 @@
+{
+  "name": "mashupdaw",
+  "version-string": "0.1.0",
+  "dependencies": [
+    { "name": "ffmpeg", "default-features": false, "features": ["avcodec", "avformat", "swresample", "mp3lame"] },
+    "rubberband",
+    "fftw3"
+  ]
+}

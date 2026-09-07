@@ -132,7 +132,7 @@ public:
         {
             const double sr = 48000.0;
             juce::AudioBuffer<float> b (2, (int) sr * 3);
-            for (int i = 0; i < b.getNumSamples(); ++i) { const float v = (float) std::sin (2 * M_PI * 220.0 * i / sr); b.setSample (0, i, v); b.setSample (1, i, v); }
+            for (int i = 0; i < b.getNumSamples(); ++i) { const float v = (float) std::sin (2 * juce::MathConstants<double>::pi * 220.0 * i / sr); b.setSample (0, i, v); b.setSample (1, i, v); }
             ClipPlayer::Static st; st.clipId = "x"; st.source = std::make_shared<AudioSource> ("x", juce::File(), std::move (b), sr);
             st.startBeat = 0; st.lengthBeats = 4; st.mode = StretchMode::HighQuality;
             ClipPlayer player (st, sr, 512);

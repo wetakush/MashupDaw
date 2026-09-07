@@ -1,0 +1,109 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+env:
+  JUCE_TAG: 8.0.8
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config xvfb libavformat-dev libavcodec-dev libavutil-dev libswresample-dev \
+            librubberband-dev libfftw3-dev libasound2-dev libjack-jackd2-dev libfreetype-dev libfontconfig1-dev \
+            libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxext-dev libgl1-mesa-dev libcurl4-openssl-dev
+          git clone --depth 1 --branch $JUCE_TAG https://github.com/juce-framework/JUCE.git third_party/JUCE
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build
+      - name: Tests
+        run: xvfb-run -a ./build/Tests/MashupTests_artefacts/Release/MashupTests
+      - name: Package
+        run: cd build && cpack -G TGZ && ls *.tar.gz
+      - uses: actions/upload-artifact@v4
+        with: { name: linux, path: build/*.tar.gz }
+
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          brew install ninja pkg-config ffmpeg rubberband fftw dylibbundler
+          git clone --depth 1 --branch $JUCE_TAG https://github.com/juce-framework/JUCE.git third_party/JUCE
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build
+      - name: Tests
+        run: ./build/Tests/MashupTests_artefacts/Release/MashupTests
+      - name: Bundle
+        run: |
+          APP=build/MashupDaw_artefacts/Release/MashupDaw.app
+          dylibbundler -od -b -x "$APP/Contents/MacOS/MashupDaw" -d "$APP/Contents/Frameworks" -p @executable_path/../Frameworks
+          mkdir -p "$APP/Contents/Resources/Scripts" && cp Scripts/* "$APP/Contents/Resources/Scripts/"
+          codesign --force --deep --sign - "$APP"
+          cd build/MashupDaw_artefacts/Release && ditto -c -k --keepParent MashupDaw.app ../../MashupDaw-macOS-arm64.zip
+      - uses: actions/upload-artifact@v4
+        with: { name: macos, path: build/MashupDaw-macOS-arm64.zip }
+
+  windows:
+    runs-on: windows-latest
+    env:
+      VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Export GitHub Actions cache environment variables
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+      - name: JUCE
+        run: git clone --depth 1 --branch $env:JUCE_TAG https://github.com/juce-framework/JUCE.git third_party/JUCE
+      - name: Configure (vcpkg manifest)
+        run: >
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_MANIFEST_MODE=ON
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Tests
+        run: build\Tests\MashupTests_artefacts\Release\MashupTests.exe
+      - name: Package
+        run: |
+          cmake --install build --config Release --prefix pkg/MashupDaw
+          Compress-Archive -Path pkg/MashupDaw -DestinationPath MashupDaw-Windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: MashupDaw-Windows-x64.zip }
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, macos, windows]
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dist, merge-multiple: true }
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          body: |
+            MashupDaw ${{ github.ref_name }} — desktop DAW for mashups and remixes.
+
+            * **Linux** tarball: extract, run `bin/MashupDaw`. Needs FFmpeg, Rubber Band, FFTW3, ALSA/JACK from your distro.
+            * **macOS** (Apple Silicon): unzip, first launch `xattr -dr com.apple.quarantine MashupDaw.app` (unsigned build).
+            * **Windows** x64: unzip, run `MashupDaw.exe` (DLLs included).
+            * Stem separation needs Python 3.10–3.12 + `Scripts/setup_stems_env.sh` (or an equivalent venv with torch and demucs; set `MASHUP_STEMS_VENV`).

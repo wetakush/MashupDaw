@@ -164,8 +164,8 @@ BpmDetector::Result BpmDetector::analyse (const float* mono, int numSamples, dou
         std::vector<float> rise ((size_t) nb, 0.0f);
         for (int i = 3; i < nb; ++i) rise[(size_t) i] = std::max (0.0f, en[(size_t) i] - en[(size_t) i - 3]);
         // coarse phase from the tracked beats (circular mean), then a fine search +-25 ms in 1 ms steps
-        double sx = 0, sy = 0; for (double b : r.beats) { const double a = 2 * M_PI * std::fmod (b, p) / p; sx += std::cos (a); sy += std::sin (a); }
-        double phase = std::fmod (std::atan2 (sy, sx) / (2 * M_PI) * p + p, p);
+        double sx = 0, sy = 0; for (double b : r.beats) { const double a = 6.283185307179586 * std::fmod (b, p) / p; sx += std::cos (a); sy += std::sin (a); }
+        double phase = std::fmod (std::atan2 (sy, sx) / (6.283185307179586) * p + p, p);
         double bestScore = -1, bestPhase = phase;
         for (double off = -0.03; off <= 0.03; off += 0.001)
         {
