@@ -1,6 +1,8 @@
 #include "StemSeparationService.h"
 #include "Project/ProjectModel.h"
 #include "Core/Log.h"
+#include "Import/FFmpegDecoder.h"
+#include <juce_audio_formats/juce_audio_formats.h>
 
 namespace mashup
 {
@@ -142,6 +144,34 @@ void StemSeparationService::processJob (Job job)
     postUpdate (id, [] (Job& j) { j.state = Job::State::Running; j.stage = "starting"; j.progress = 0.0f; });
     if (! job.inputFile.existsAsFile()) { postUpdate (id, [f = job.inputFile] (Job& j) { j.state = Job::State::Failed; j.error = "input file missing: " + f.getFullPathName(); }); return; }
     job.outputDir.createDirectory();
+
+    // Hand the worker a plain WAV: torchaudio/soundfile cannot open every container (e.g. AAC/M4A), FFmpeg can.
+    if (! job.inputFile.hasFileExtension ("wav"))
+    {
+        postUpdate (id, [] (Job& j) { j.stage = "preparing audio"; j.progress = 0.01f; });
+        juce::File wav = job.outputDir.getChildFile ("input.wav");
+        juce::AudioBuffer<float> audio; double sr = 0;
+        if (auto src = sources.get (job.sourceId)) { audio = src->buffer; sr = src->sampleRate; }
+        else
+        {
+            auto res = FFmpegDecoder::decode (job.inputFile);
+            if (! res.ok) { postUpdate (id, [e = res.error] (Job& j) { j.state = Job::State::Failed; j.error = "could not decode input: " + e; }); return; }
+            audio = std::move (res.audio); sr = res.info.sampleRate;
+        }
+        bool written = false;
+        {
+            juce::WavAudioFormat fmt;
+            wav.deleteFile();
+            if (auto os = std::unique_ptr<juce::FileOutputStream> (wav.createOutputStream()); os && os->openedOk())
+                if (std::unique_ptr<juce::AudioFormatWriter> w { fmt.createWriterFor (os.get(), sr, (unsigned) audio.getNumChannels(), 32, {}, 0) })
+                {
+                    os.release();
+                    written = w->writeFromAudioSampleBuffer (audio, 0, audio.getNumSamples());
+                }
+        }
+        if (! written) { postUpdate (id, [] (Job& j) { j.state = Job::State::Failed; j.error = "could not write temporary WAV"; }); return; }
+        job.inputFile = wav;
+    }
 
     juce::DynamicObject::Ptr obj = new juce::DynamicObject();
     obj->setProperty ("input", job.inputFile.getFullPathName());
