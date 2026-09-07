@@ -1,0 +1,12 @@
+# FindFFmpeg.cmake — imported target FFmpeg::FFmpeg from pkg-config
+find_package(PkgConfig REQUIRED)
+set(_ffm_all)
+foreach(_c IN LISTS FFmpeg_FIND_COMPONENTS)
+  pkg_check_modules(PC_${_c} REQUIRED IMPORTED_TARGET lib${_c})
+  list(APPEND _ffm_all PkgConfig::PC_${_c})
+endforeach()
+if(NOT TARGET FFmpeg::FFmpeg)
+  add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
+  target_link_libraries(FFmpeg::FFmpeg INTERFACE ${_ffm_all})
+endif()
+set(FFmpeg_FOUND TRUE)

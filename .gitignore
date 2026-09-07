@@ -1,0 +1,9 @@
+build/
+build-*/
+.venv-stems/
+third_party/JUCE/
+*.mashupcache/
+*.autosave
+__pycache__/
+.cache/
+compile_commands.json

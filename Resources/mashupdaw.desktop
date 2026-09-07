@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=MashupDaw
+Comment=Desktop DAW for mashups and remixes
+Exec=MashupDaw %F
+Icon=mashupdaw
+Terminal=false
+Categories=AudioVideo;Audio;
+MimeType=audio/mpeg;audio/x-wav;audio/flac;audio/mp4;audio/ogg;

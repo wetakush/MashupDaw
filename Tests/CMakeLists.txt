@@ -1,0 +1,5 @@
+file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+juce_add_console_app(MashupTests PRODUCT_NAME "MashupTests")
+target_sources(MashupTests PRIVATE ${TEST_SOURCES})
+target_link_libraries(MashupTests PRIVATE MashupCore)
+add_test(NAME MashupTests COMMAND MashupTests)
